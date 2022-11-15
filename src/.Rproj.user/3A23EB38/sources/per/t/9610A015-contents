@@ -1,0 +1,1503 @@
+---
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document: 
+    toc: yes
+    toc_float: TRUE
+    toc_depth: 2
+    theme: cerulean
+params:
+  dat1: NA
+  cls1: NA
+  class_msi: TRUE
+  std: NA
+  nm: NA 
+  chr: NA 
+  i1: NA 
+  pl: NA 
+  ba: NA 
+  dt: NA 
+  pr: NA 
+  nor: NA 
+  q1: NA 
+  q2: NA 
+  q3: NA
+  
+  rendered_by_shiny: FALSE
+---
+
+
+```{r setup, include=FALSE}
+
+# default parameters for plot output
+
+  knitr::opts_chunk$set(echo = F, 
+                        warning = F,
+                        message = F,
+                        dpi = 500,
+                        fig.width = 7)
+
+  library(tidyverse)
+
+# conditions
+
+  eval_msi_class <- params$class_msi
+
+  eval_blank <- !eval_msi_class
+
+
+
+```
+
+```{r, echo=FALSE, results=F, message=F, warning=F}
+
+
+# Set repository for Bioconductor packages
+
+  chooseBioCmirror(ind = 1)
+
+# load libraries
+
+  library(readxl)
+  library(dplyr)
+  library(extrafont)
+  library(ggsci)
+  library(extrafont)
+  library(openxlsx)
+  library(kableExtra)
+  library(cluster)
+  library(ggfortify)
+  library(ggpubr)
+  library(ggplot2)
+  library(ggforce)
+  library(mixOmics)
+  library(ggrepel)
+  library(here)
+  library(fuzzyjoin)
+  library(zip)
+
+
+# color schemes
+
+  col1 <- c("firebrick4",
+            "royalblue",
+            "springgreen4",
+            "gold",
+            "firebrick1",
+            "navyblue", 
+            "purple", 
+            "red", 
+            "green", 
+            "blue", 
+            "orange", 
+            "yellow")
+  
+  col7 <- c("deepskyblue", 
+            "firebrick1", 
+            "goldenrod1", 
+            "springgreen",
+            "darkblue", 
+            "firebrick4", 
+            "darkgreen", 
+            "ivory", 
+            'black')
+
+  col99 <- c("firebrick4",
+             "royalblue",
+             "springgreen4",
+             "gold",
+             "lightblue4",
+             "springgreen1", 
+             "purple", 
+             "azure4", 
+             "orangered", 
+             "navy", 
+             "red", 
+             "yellow",
+             "greenyellow", 
+             "turquoise",
+             "orchid",
+             "tan",
+             "grey30",
+             "hotpink",
+             "maroon",
+             "khaki")
+
+
+# plot themes
+
+thm1 <- theme(plot.title = element_text(hjust = 0.5,
+                                        face = 'bold'), 
+        legend.text = element_text(size=14, 
+                                   face = 'bold'),
+        legend.title = element_blank(),
+        legend.justification = c('right', 
+                                 'top'),
+        axis.text.x = element_text(face = 'bold',
+                                   size = 14),
+        axis.text.y = element_text(face = 'bold',
+                                   size = 14),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.line.y.left = element_line(colour = 'black'),
+        axis.line.x.bottom = element_line(colour = 'black'),
+        panel.grid.major.y = element_line(colour = 'grey85'),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        strip.background = element_rect(fill = 'slategray2'),
+        strip.text = element_text(face = 'bold',
+                                  size = 12),
+        axis.title.x = element_text(face = 'bold',
+                                    size = 14),
+        axis.title.y = element_text(face='bold',
+                                    size = 14),
+        legend.key.size = unit(0.4,
+                               'cm'),
+        legend.key = element_blank(),
+        legend.position = c(0.5, 0.95),
+        legend.box.just = 'right')
+
+
+thm2 <- theme(plot.title = element_text(hjust = 0.5), 
+        legend.text = element_text(size=8, 
+                                   face = 'bold'),
+        legend.title = element_text(face = 'bold',
+                                    size = 10),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.line.y.left = element_blank(),
+        axis.line.x.bottom = element_blank(),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_text(face = 'bold',
+                                  size = 12),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.key.size = unit(0.1,'in'),
+        legend.key = element_rect(fill = 'white'),
+        legend.position = "right")
+
+
+# input data
+
+df1 <- params$dat1
+
+
+
+
+# sample number
+
+grps <- df1 %>% 
+  dplyr::select(sampleType)
+
+group_sum <- grps %>% 
+  count(sampleType)
+
+names(group_sum) <- c("Sample Type", 
+                      "Number")
+
+group_sum$Number <- as.character(group_sum$Number)
+
+group_sum$Samp <- paste(group_sum$Number,
+                        group_sum$`Sample Type`,
+                        sep = " ")
+
+g1 <- group_sum %>% 
+  filter(`Sample Type` != "Sample") %>%
+  dplyr::select(Samp) 
+
+g1 <-  dplyr::pull(g1, Samp)
+
+s1 <- group_sum %>% 
+  filter(`Sample Type` == "Sample") %>%
+  dplyr::select(Number)
+
+s2 <- df1[!grepl("iSTD", 
+                 colnames(df1)
+                 )
+          ]
+
+
+
+
+# specify qc names
+
+qc1 <- params$q1
+
+qc2 <- params$q2
+
+qc3 <- params$q3
+
+
+
+
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.125)
+
+
+```
+
+# **Quality Control Report for `r params$std`**
+
+#### Prepared by: `r params$nm` 
+
+## **Study Details**
+
+Number of samples: `r paste(noquote(s1))`  
+Number of QC samples: `r paste(noquote(g1), collapse = ", ")`   
+Analysis Platform: `r params$pl`  
+Number of batches: `r params$ba`
+Analysis Date: `r params$dt`    
+
+## **Dataset Details**  
+
+Samples were analyzed by **`r params$chr`** using a **`r params$i1`**. A total of **`r paste(ncol(s2[,4:ncol(s2)]))`** compounds were annotated in **`r params$pl`**. All data processing was completed using **`r params$pr`**. Data were normalized by **`r params$nor`**, and `r params$q1`, `r params$q2`, and `r params$q3` were used as quality control samples to assess technical variance and robustness of the analytical method. The results following data processing, curation, and normalization are included below.
+
+## **Technical Variance**
+
+Principal Component Analysis (PCA) of the normalized data was conducted to determine general variation among the quality control samples within the analysis. These results are shown in **Figure 1**.
+
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F}
+
+# prepare input for PCA (data frame, qc1, mdata + 1)
+
+pca <- function(df, 
+                q3, 
+                md1) {
+
+  
+    ## remove method blanks (if present)
+
+    d_pc_in <<- df %>% 
+    filter(sampleType != q3)
+
+    ## change group variables to factor instead of character
+
+    d_pc_in$`sampleType` <- as.factor(d_pc_in$`sampleType`)
+
+    ## separate metadata and conduct PCA
+
+    pc_in <<- prcomp(d_pc_in[,md1:ncol(d_pc_in)], 
+                 scale. = T) 
+
+  }
+    
+
+# run function
+      
+pca(df1, 
+    qc3, 
+    4)  
+    
+      
+      
+      
+## extract first two PCs (for plotting)
+  
+    vrc <- summary(pc_in)$importance[2,]
+
+    PC1 <- pc_in$x[, 1]
+
+    PC2 <- pc_in$x[, 2]
+
+    p9 <- cbind(d_pc_in, 
+               PC1, 
+               PC2)
+
+    
+## functions to name plot axes
+
+
+    pc1_lab <- function(val, 
+                      digits = 2, 
+                      format = 'f') {
+      
+          paste0('PC1 (', 
+            formatC(100*val, 
+                    format = format, 
+                    digits = digits),
+                 '%)')
+                
+                }
+
+    pc2_lab <- function(val, 
+                      digits = 2, 
+                      format = 'f') {
+      paste0('PC2 (', 
+             formatC(100*val, 
+                     format = format, 
+                     digits = digits),
+         '%)')
+      }
+    
+    
+    
+## OUTLIER DETECTION ##
+
+## Determine samples + or - 3 SD from mean mTIC of each group
+
+    p9$Index <- seq.int(1:nrow(p9))
+
+## Calculate mTIC
+    
+    p9 <- p9 %>% 
+      dplyr::select(Index, 
+                    PC1, 
+                    PC2, 
+                    everything()
+                    )
+
+    p9$mTIC <- apply(p9[,7:ncol(p9)], 
+                    MARGIN = 1, 
+                    function (x) sum(x)
+                    ) 
+
+## Calculate mean and SD
+    
+    sval <- p9 %>% 
+            group_by(sampleType) %>%
+            summarise_at(vars(mTIC), 
+               list(mean = mean,
+                    sdev = sd)
+               )
+
+    sval$sd.min <- sval$mean - 
+                   3*sval$sdev
+
+    sval$sd.max <- sval$mean + 
+                   3*sval$sdev
+
+    
+    
+    
+## Isolate each sample group
+    
+    slv <-  function(df,
+                     x) { 
+  
+                dfn <<- df %>% 
+                        filter(sampleType == x)
+              
+                }
+
+  ### Experimental samples
+    
+    slv(sval, 
+        "Sample")
+
+    q1v <- dfn
+    
+    slv(p9, 
+        "Sample")
+
+    v1 <- dfn
+
+  ### 1st quality control
+    
+    slv(sval, 
+        qc1)
+
+    q2v <- dfn
+    
+    slv(p9, 
+        qc1)
+
+    v2 <- dfn
+
+  ### 2nd quality control
+    
+    slv(sval, 
+        qc2)
+
+    q3v <- dfn
+
+    slv(p9, 
+        qc2)
+
+    v3 <- dfn
+    
+    
+    
+
+## Mark outliers for each sample group
+
+    v1$out <- with(v1, 
+                   ifelse(mTIC > q1v$sd.max | 
+                          mTIC < q1v$sd.min,
+                          1,
+                          0)
+                   )
+    
+
+    v2$out <- with(v2, 
+                   ifelse(mTIC > q2v$sd.max & 
+                          mTIC < q2v$sd.min,
+                          1,
+                          0)
+                   )
+    
+
+    v3$out <- with(v3, 
+                   ifelse(mTIC > q3v$sd.max & 
+                          mTIC < q3v$sd.min,
+                          1,
+                          0)
+                   )
+
+## Calculate number of standard deviations and combine into one df
+
+    v1$nsd <- abs(v1$mTIC - q1v$mean)/
+              q1v$sdev
+
+    v2$nsd <- abs(v2$mTIC - q2v$mean)/
+              q2v$sdev
+
+    v3$nsd <- abs(v3$mTIC - q3v$mean)/
+              q3v$sdev
+
+    p9 <- rbind(v1, 
+                v2, 
+                v3)
+    
+    p9.out <- p9[which(p9$out == 1),
+                  ]
+    
+    
+## Assign parameters for conditional chunk execution (if no outliers are present, a different chunk without labels is run)
+    
+eval_outlier <- ifelse(nrow(p9.out) == 0,
+                         FALSE,
+                         TRUE)
+
+eval_no_outlier <- ifelse(nrow(p9.out) == 0,
+                            TRUE,
+                            FALSE)
+
+
+```  
+    
+    
+    
+    
+    
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F, eval=eval_outlier}
+    
+## scatterplot with marked outliers
+
+    pcp1 <- ggplot(p9, 
+                   aes(x=PC1, 
+                       y=PC2, 
+                       col = `sampleType`, 
+                       fill = `sampleType`)
+                   ) +
+            
+      ### Scatter
+      
+            geom_point(shape=21, 
+                       col="black", 
+                       size = 3,
+                       alpha = 0.8) +
+      
+      ### Outlier labels
+      
+            geom_text_repel(data = subset(p9, 
+                                          out == 1),
+                            aes(label = label,
+                            size = 12),
+                            segment.size = 0.1,
+                            segment.color = "grey",
+                            show.legend = F) +
+      
+      ### Axis labels
+      
+            labs(y = pc2_lab(vrc[2]), 
+                 x = pc1_lab(vrc[1])
+                 ) +
+      
+      ### Theme
+            
+            thm1
+    
+    
+            
+## Apply color scheme
+    
+            pc1 <- pcp1 + 
+              scale_fill_manual(values = col7)
+            
+            
+
+            
+            
+## plot showing number of standard deviations
+
+    pcp2 <- ggplot(p9, 
+                   aes(x = `Index`,
+                       y = `nsd`,
+                       col = sampleType,
+                       fill = sampleType)
+                   ) +
+      
+      
+      
+            geom_point(shape = 21,
+                       col = "black",
+                       size = 3,
+                       alpha = 0.8) +
+      
+      
+      
+            geom_text_repel(data = subset(p9, 
+                                          out == 1),
+                            aes(label = label,
+                                size = 12),
+                            segment.size = 0.1,
+                            segment.color = "grey",
+                            show.legend = F) +
+      
+      
+      
+            geom_hline(yintercept = 3,
+                       linetype = "dashed") +
+      
+      
+      
+            xlab("Sample Index") +
+      
+            ylab("no. standard deviations") +
+      
+            thm1
+    
+## Apply color scheme and combine with PCA plot
+
+    pc2 <- pcp2 + 
+      scale_fill_manual(values = col7)
+
+
+
+
+    pc3 <- ggarrange(pc1, 
+                     pc2, 
+                     labels = c("A", 
+                                "B"),
+                     ncol = 2, 
+                     nrow = 1, 
+                     common.legend = T,
+                     legend = "bottom")
+
+    
+    pc4 <- annotate_figure(pc3,
+                           top = text_grob("Normalized PCA",
+                                           face = "bold", 
+                                           size = 14),
+                           fig.lab = "Figure 1.", 
+                           fig.lab.face = "bold", 
+                           fig.lab.size = 11)
+
+    
+## Save the plot and include in the report
+    
+    ggsave(filename = "plots/1_normalization_summary.png", 
+           pc4, 
+           width = 14, 
+           height = 7,
+           dpi = 500)
+
+    
+    knitr::include_graphics("plots/1_normalization_summary.png")
+
+
+
+
+    if (params$rendered_by_shiny)
+    shiny::setProgress(0.25)
+
+    
+```
+
+
+
+
+
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F, eval=eval_no_outlier}
+    
+## scatterplot without marked outliers
+
+    pcp1 <- ggplot(p9, 
+                   aes(x=PC1, 
+                       y=PC2, 
+                       col = `sampleType`, 
+                       fill = `sampleType`)
+                   ) +
+            
+  ### Scatter
+      
+            geom_point(shape=21, 
+                       col="black", 
+                       size = 3,
+                       alpha = 0.8) +
+      
+  ### Axis labels
+      
+            labs(y = pc2_lab(vrc[2]), 
+                 x = pc1_lab(vrc[1])
+                 ) +
+      
+  ### Theme
+            
+            thm1
+    
+    
+            
+## Apply color scheme
+    
+            pc1 <- pcp1 + 
+              scale_fill_manual(values = col7)
+            
+            
+
+            
+            
+## plot showing number of standard deviations
+
+    pcp2 <- ggplot(p9, 
+                   aes(x = `Index`,
+                       y = `nsd`,
+                       col = sampleType,
+                       fill = sampleType)
+                   ) +
+      
+      
+      
+            geom_point(shape = 21,
+                       col = "black",
+                       size = 3,
+                       alpha = 0.8) +
+      
+    
+            geom_hline(yintercept = 3,
+                       linetype = "dashed") +
+      
+      
+      
+            xlab("Sample Index") +
+      
+            ylab("no. standard deviations") +
+      
+            thm1
+    
+## Apply color scheme and combine with PCA plot
+
+    pc2 <- pcp2 + 
+      scale_fill_manual(values = col7)
+
+
+
+
+    pc3 <- ggarrange(pc1, 
+                     pc2, 
+                     labels = c("A", 
+                                "B"),
+                     ncol = 2, 
+                     nrow = 1, 
+                     common.legend = T,
+                     legend = "bottom")
+
+    
+    pc4 <- annotate_figure(pc3,
+                           top = text_grob("Normalized PCA",
+                                           face = "bold", 
+                                           size = 14),
+                           fig.lab = "Figure 1.", 
+                           fig.lab.face = "bold", 
+                           fig.lab.size = 11)
+
+    
+## Save the plot and include in the report
+    
+    ggsave(filename = "plots/1_normalization_summary.png", 
+           pc4, 
+           width = 14, 
+           height = 7,
+           dpi = 500)
+
+    
+    knitr::include_graphics("plots/1_normalization_summary.png")
+
+
+
+
+    if (params$rendered_by_shiny)
+    shiny::setProgress(0.25)
+
+    
+```
+
+**Figure 1.** PCA of all experimental and quality control samples after data normalization. **A)** PCA plot of all samples, with individual samples that exceed 3 standard deviations from the mean mTIC value of each group labeled. **B)** Scatter plot displaying the number of standard deviations each sample varies from the mean mTIC within each group. Samples that exceed 3 standard deviations are labeled by sample name.
+
+Variation and signal drift were visualized throughout the sample acquisition by plotting the average combined peak heights of internal standards spiked in each sample. The variation in the average combined peak heights of internal standards is shown below (**Figure 2**).
+
+```{r, echo=F, fig.align= "center", out.width="75%", results=T, message=F, warning=F}
+
+## Variation in Internal Standards ##
+
+## choose metadata columns
+
+  mdata_norm <- df1[ , 1:3]
+
+
+## Prepare data set
+
+  d_norm <- df1[ ,
+                grep("iSTD", names(df1)
+                    )
+               ]
+
+  d_norm$`iSTD Average` <- rowMeans(d_norm)
+
+  d_norm_iSTD <- cbind(mdata_norm,
+                       d_norm)
+
+  d_norm_iSTD <- d_norm_iSTD %>% 
+    filter(sampleType != qc3)
+
+
+
+## Plot average iSTD intensity across the analytical run
+
+d_norm_iSTD_plot <- ggplot(data= d_norm_iSTD, 
+                           aes(x= `time`, 
+                               y=`iSTD Average`, 
+                               fill=`sampleType`)
+                           ) +
+  
+                    geom_point(show.legend = T, 
+                               shape = 21,
+                               size=3, 
+                               alpha=0.6) +
+  
+                    xlab("Injection Order") +
+  
+                    ylab("iSTD Average Peak Height") +
+  
+                    thm1 + 
+  
+                    ggtitle("Internal Standard Average Peak Height")
+
+## Apply color scheme
+
+i1 <- d_norm_iSTD_plot + 
+  scale_fill_manual(values=col7)
+
+
+
+
+## Save the plot and include in report
+
+ggsave("plots/2_variation_iSTDS.png",
+       i1, 
+       width=12, 
+       height = 8, 
+       dpi = 500)
+
+knitr::include_graphics("plots/2_variation_iSTDS.png")
+
+
+
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.375)
+
+
+```
+
+**Figure 2.** Average combined peak heights of all internal standards vs. injection order. 
+
+The relative standard deviations (RSD) of each annotated metabolite in both types of quality control samples were assessed to determine variation within individual annotations. RSD values were used as a benchmark for including or excluding these metabolites in downstream statistical analysis. The RSD values for compounds in quality control samples that exceed 50% are flagged and displayed below (**Figure 3**).
+
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F}
+
+## QC RSD for Annotated Metabolites ##
+
+# RSD function
+
+  mRSD <- function(md1, 
+                   qc_name) {
+
+        ## Prepare data set
+  
+        dQC <- df1[grepl(qc_name, 
+                          df1$sampleType),
+                   ]
+
+        dQC <- dQC[ ,
+                   md1:ncol(dQC)] %>%
+              t() %>% 
+              as.data.frame()
+
+        
+        ## Calculate values for QC RSD
+
+        dQC$RSD <- apply(dQC, 
+                         1, 
+                         function(x) 
+                           (sd(x)/mean(x)) * 
+                           100)
+
+        dQC$Index <- seq.int(1:nrow(dQC)
+                             )
+        
+        
+        ## Assign annotation type (iSTD or annotated metabolite)
+        
+        dQC$`Compound Type` <- if_else(grepl("iSTD",
+                                             row.names(dQC)
+                                             ),
+                                       'Internal Standard',
+                                       'Annotated Metabolite')
+        
+        dQC$`Compound Name` <- row.names(dQC)
+        
+        
+        ## Select variables of interest
+
+        dQC <- dQC %>% 
+              dplyr::select(Index,
+                            `Compound Name`,
+                            `Compound Type`,
+                            RSD, 
+                            everything()
+                            )
+
+        
+        ## return annotations that have RSD values above 50%
+        
+        flagged1 <- na.omit(dQC[dQC$RSD > 50,
+                                ]
+                            )
+        
+        row.names(flagged1) <- seq.int(1:nrow(flagged1)
+                                       )
+        
+        flagged1 <- flagged1[ ,
+                              1:4]
+        
+        flagged1 <<- flagged1 %>% 
+          dplyr::select(-c(`Compound Type`)
+                        )
+        
+        dQC1 <<- dQC
+        
+        
+      }
+
+
+
+# Generate plots for annotated metabolites contained within each QC type
+
+  rsd.plot <- function(df,
+                       plot.title) {
+    
+    ## Create plot
+    
+    dQC_plot <- ggplot(data= df, 
+                       aes(x= `Index`, 
+                           y=`RSD`, 
+                           fill=`Compound Type`)
+                       ) +
+      
+          geom_point(shape=21, 
+                     show.legend = T, 
+                     size=3, 
+                     alpha=0.6) +
+      
+          ## Include index values for annotated metabolites with RSD > 50%
+      
+          geom_text_repel(data = subset(dQC, 
+                                        RSD > 50),
+                          aes(label = Index),
+                          nudge_y = 300 - 
+                            subset(dQC, RSD > 50)$RSD,
+                          segment.size = 0.1,
+                          segment.color = "grey") +
+      
+          xlab("Index") +
+      
+          ylab("Relative Standard Deviation (%)") +
+          
+          thm1 + 
+          
+          ggtitle(plot.title)
+    
+    ## Apply color scheme and custom y-axis limits
+    
+    dQC.plot <- ggpar(dQC_plot,
+                      ylim = c(0,
+                               350)
+                      )
+    
+    dQC.plot2 <- dQC.plot +
+      scale_fill_manual(values = c("firebrick1",
+                                   "royalblue")
+                        )
+    
+    
+  }
+ 
+  
+## Condition for QC #2 plot generation
+  
+  eval_qc1 <- ifelse(qc2 == "N/A",
+                     FALSE,
+                     TRUE)
+  
+  eval_qc2 <- ifelse(qc2 == "N/A",
+                     TRUE,
+                     FALSE)
+  
+
+``` 
+
+
+
+  
+  
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F, eval= eval_qc1}
+
+
+# Obtain RSDs for first two QC sample types
+
+ ## 1st QC
+
+  mRSD(4, qc1)
+  
+  flaggedQC <- flagged1
+  dQC <- dQC1
+  
+  
+ ## 2nd QC
+  
+  mRSD(4, qc2)
+  
+  flaggedBR <- flagged1
+  dBR   <- dQC1
+
+
+# Create both plots and combine
+  
+  mQC1 <- rsd.plot(dQC,
+                   "1st QC Relative Standard Deviation")
+  
+  mQC2 <- rsd.plot(dBR,
+                   "2nd QC Relative Standard Deviation")
+
+
+  m5 <- ggarrange(mQC1,
+                  mQC2, 
+                  common.legend = T, 
+                  ncol=2, 
+                  nrow=1, 
+                  labels = c("A",
+                             "B"),
+                  legend = "bottom")
+
+  
+  
+  
+  
+# Save plot and include in report
+
+  ggsave("plots/3_QC_RSD.png", 
+         m5, 
+         width=14, 
+         height=7, 
+         dpi = 500)
+
+  knitr::include_graphics("plots/3_QC_RSD.png")
+
+
+
+
+
+  if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)
+
+
+```
+
+
+
+
+
+```{r, echo=F, fig.align= "center", out.width="100%", results=T, message=F, warning=F, eval= eval_qc2}
+
+# Obtain RSDs for first QC sample type only
+
+ ## 1st QC
+
+  mRSD(4, qc1)
+  
+  flaggedQC <- flagged1
+  dQC <- dQC1
+
+
+# Create both plots and combine
+  
+  mQC1 <- rsd.plot(dQC,
+                   "1st QC Relative Standard Deviation")
+
+
+  m5 <- ggarrange(mQC1,
+                  common.legend = T, 
+                  ncol=1, 
+                  nrow=1, 
+                  labels = c("A"),
+                  legend = "bottom")
+
+  
+  
+  
+  
+# Save plot and include in report
+
+  ggsave("plots/3_QC_RSD.png", 
+         m5, 
+         width=7, 
+         height=7, 
+         dpi = 500)
+
+  knitr::include_graphics("plots/3_QC_RSD.png")
+
+
+
+
+
+  if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)
+
+
+```
+
+
+**Figure 3.** **A-B)** Scatter plots of the RSDs for each annotated metabolite in each type of quality control used during data acquisition. Metabolites in the datasets that exceed 50% RSD are flagged. In the data set, QC 1 corresponds to **`r qc1`** samples and QC 2 are **`r qc2`** samples.
+
+```{r, echo=F, fig.align= "center", results=T, message=F, warning=F, eval= eval_qc1}
+
+## Table displaying flagged metabolites ##
+
+# Table input
+
+  flaggedQC %>% 
+  kbl() %>%
+  kable_styling(full_width=F,
+                font_size=10,
+                html_font = "Arial",
+                bootstrap_options = c("condensed",
+                                      "responsive",
+                                      "striped")
+                )
+
+
+# Save tables as .xlsx
+
+ ## Metabolites flagged in 1st QC
+
+  write.xlsx(flaggedQC, 
+             "tables/4a_flagged_by_QC_rsd.xlsx", 
+             overwrite = T)
+  
+ ## Metabolites flagged in 2nd QC
+  
+  write.xlsx(flaggedBR, 
+             "tables/4b_flagged_by_BR_rsd.xlsx", 
+             overwrite = T)
+
+  
+  
+  
+  
+  if (params$rendered_by_shiny)
+  shiny::setProgress(0.625)
+
+
+```
+
+
+
+
+
+```{r, echo=F, fig.align= "center", results=T, message=F, warning=F, eval= eval_qc2}
+
+## Table displaying flagged metabolites ##
+
+# Table input
+
+  flaggedQC %>% 
+  kbl() %>%
+  kable_styling(full_width=F,
+                font_size=10,
+                html_font = "Arial",
+                bootstrap_options = c("condensed",
+                                      "responsive",
+                                      "striped")
+                )
+
+
+# Save tables as .xlsx
+
+ ## Metabolites flagged in 1st QC
+
+  write.xlsx(flaggedQC, 
+             "tables/4a_flagged_by_QC_rsd.xlsx", 
+             overwrite = T)
+
+  
+  
+  
+  
+  if (params$rendered_by_shiny)
+  shiny::setProgress(0.625)
+
+
+```
+
+
+**Table 1.** Metabolites in the data set that exceed 50% RSD in the pooled quality control samples are listed. These metabolites are also included in the resulting excel output files.
+
+The respective values for median **`r qc1`** RSD and median RSD of the **`r qc2`** samples for all annotated metabolites were **`r median(dQC$RSD, na.rm = T)`**% and **`r  ifelse(qc2 == "N/A", "N/A", median(dBR$RSD, na.rm = T))`**% in the normalized data set, with **`r nrow(dQC[dQC$RSD < 20,])`** compounds below 20% **QC 1** RSD. 
+
+
+
+
+
+## **Annotation Information**
+
+Following assessment of technical variance and removal of metabolites with RSDs greater than 50%, metabolites were grouped into classes using Classyfire and MSI levels were assigned to each metabolite using the criteria in **Table 2**.
+
+
+```{r, echo=F, results=T, message=F, warning=F}
+
+## MSI Information Table ##
+
+    msi1 <- data.frame(Level = c(1, 2, 3, 4),
+                       Criteria = c("Matching m/z, retention time (RT), and MS/MS to reference standard",
+                                    "MS/MS or m/z & RT match to reference standard",
+                                    "MS/MS or m/z & RT match with similar, less likely MS/MS or m/z & RT matches",
+                                    "Unknown")
+                       )
+
+    msi1 %>% 
+      kbl() %>%
+      kable_styling(bootstrap_options = c("condensed", 
+                                      "responsive",
+                                      "striped"),
+                    font_size = 10,
+                    html_font = "Arial",
+                    full_width = T,
+                    position = "float_right")
+
+    
+    
+    
+    
+    if (params$rendered_by_shiny)
+    shiny::setProgress(0.75)
+
+
+```
+
+**Table 2.** Criteria used in the assignment of MSI levels. Level 3 annotations correspond to features that either have matching MS/MS with other putative but poorer matches or matching m/z & RT with more than one peak eluting within a specified retention time threshold.
+
+Class information for each annotated metabolite is included in **Figure 4**. The reported metabolite classes correspond to the major class reported by Classyfire. The number of compounds annotated at each MSI level are shown in **Table 3**.
+
+```{r, echo=F, fig.align= "center", out.width="75%", results=T, message=F, warning=F, eval=eval_msi_class}
+
+## Metabolite Class Piechart ##
+
+# Input df
+
+  df2 <- params$cls1
+
+
+# Count classes
+
+  met_ct <- df2 %>% 
+    count(Class)
+
+  
+# assign other category if less than 5 compounds of a class are present
+
+  met_ct$`Class`[which(met_ct$n < 5)] <-'Other'
+
+  ant <- function(df) { 
+    
+    pi_in <- df
+
+    b_plot <- ggplot(pi_in, 
+                     aes(x="", 
+                         y=n, 
+                         fill=`Class`)
+                     ) +
+      
+      geom_bar(width = 1, 
+               stat = "identity")
+
+    
+    pi_plot <- b_plot + 
+      
+      coord_polar("y", 
+                  start = 0) +
+      
+      theme_bw() +
+      
+      thm2
+
+    #generate the plot
+    
+    pi1 <- pi_plot + 
+      scale_fill_manual(values = col99)
+
+    pi1
+
+    ggsave("plots/5_class_chart.png", 
+           pi1,
+           width = 5,
+           height = 3,
+           dpi = 500)
+    }
+
+  
+  ant(met_ct)
+  
+
+  knitr::include_graphics("plots/5_class_chart.png")
+
+  
+  if (params$rendered_by_shiny)
+    shiny::setProgress(0.875)
+  
+  
+```
+
+**Figure 4.** Proportion of annotations corresponding to each major metabolite class. Classes containing fewer than 5 metabolites are grouped together in the "Other" category.
+
+```{r, empty-msg, eval=eval_blank}
+
+knitr::asis_output("## File containing classes was not provided...")
+
+```
+
+
+
+
+
+```{r, echo=F, results=T, message=F, warning=F, eval=eval_msi_class}
+
+# assign MSI levels based on user provided information
+
+  df3 <- df2
+
+## MSI Level (1 = Yes, 0 = No)
+
+df3$MSI <- with(df3,
+                
+               ifelse(`MSMS match` == 1 &
+                      `mzrt match` == 1 &
+                      `Similar MSMS match` == 0 &
+                      `Similar mzrt match` == 0, 
+                      
+                      1,
+                      
+                      ifelse(`MSMS match` == 1 &
+                             `mzrt match` == 0 &
+                             `Similar MSMS match` == 0 &
+                             `Similar mzrt match` == 0, 
+                             
+                             2,
+                             
+                             ifelse(`MSMS match` == 0 &
+                                    `mzrt match` == 1 &
+                                    `Similar MSMS match` == 0 &
+                                    `Similar mzrt match` == 0, 
+                                    
+                                    2,
+                                    
+                                    ifelse(`MSMS match` == 1 &
+                                           `mzrt match` == 1 &
+                                           `Similar MSMS match` == 1 &
+                                           `Similar mzrt match` == 0, 
+                                           
+                                           3,
+                                           
+                                           ifelse(`MSMS match` == 1 &
+                                                  `mzrt match` == 1 &
+                                                  `Similar MSMS match` == 0 &
+                                                  `Similar mzrt match` == 1, 
+                                                  
+                                                  3,
+                                                  
+                                                  ifelse(`MSMS match` == 1 &
+                                                         `mzrt match` == 0 &
+                                                         `Similar MSMS match` == 1 &
+                                                         `Similar mzrt match` == 0, 
+                                                         
+                                                         3,
+                                                         
+                                                         ifelse(`MSMS match` == 0 &
+                                                                `mzrt match` == 1 &
+                                                                `Similar MSMS match` == 0 &
+                                                                `Similar mzrt match` == 1, 
+                                                                
+                                                                3, 
+                                                                
+                                                                4)
+                                                         )
+                                                  )
+                                           )
+                                    )
+                             )
+                      )
+               )
+
+## Criteria
+
+df3$cri <- with(df3,
+                
+                ifelse(`MSMS match` == 1 &
+                       `mzrt match` == 1 &
+                       `Similar MSMS match` == 0 &
+                       `Similar mzrt match` == 0, 
+                       
+                       "MS/MS, m/z, RT",
+                       
+                       ifelse(`MSMS match` == 1 &
+                              `mzrt match` == 0 &
+                              `Similar MSMS match` == 0 &
+                              `Similar mzrt match` == 0, 
+                              
+                              "MS/MS",
+                              
+                              ifelse(`MSMS match` == 0 &
+                                     `mzrt match` == 1 &
+                                     `Similar MSMS match` == 0 &
+                                     `Similar mzrt match` == 0, 
+                                     
+                                     "m/z RT",
+                                     
+                                     ifelse(`MSMS match` == 1 &
+                                            `mzrt match` == 1 &
+                                            `Similar MSMS match` == 1 &
+                                            `Similar mzrt match` == 0, 
+                                            
+                                            "Similar MS/MS",
+                                            
+                                            ifelse(`MSMS match` == 1 &
+                                                   `mzrt match` == 1 &
+                                                   `Similar MSMS match` == 0 &
+                                                   `Similar mzrt match` == 1, 
+                                                   
+                                                   "Similar m/z RT",
+                                                   
+                                                   ifelse(`MSMS match` == 1 &
+                                                          `mzrt match` == 0 &
+                                                          `Similar MSMS match` == 1 &
+                                                          `Similar mzrt match` == 0, 
+                                                          
+                                                          "Similar MS/MS",
+                                    
+                                                          ifelse(`MSMS match` == 0 &
+                                                                 `mzrt match` == 1 &
+                                                                 `Similar MSMS match` == 0 &
+                                                                 `Similar mzrt match` == 1, 
+                                                                 
+                                                                 "Similar m/z RT", 
+                                                                 
+                                                                 "Unknown")
+                                                          )
+                                                   )
+                                            )
+                                     )
+                              )
+                       )
+                )
+
+
+# Export class table with MSI levels
+
+  df3 <- rename(df3, 
+                `MSI Level` = MSI,
+                Criteria = cri)
+
+  
+  write.xlsx(df3, 
+             "tables/6_class_w_MSI.xlsx",
+             overwrite = T)
+
+
+  msi_ct <- df3 %>% 
+    count(`MSI Level`,
+          Criteria)
+
+  msi_ct <- rename(msi_ct,
+                   Number = n)
+
+  
+# Create the table
+
+  msi_ct %>% 
+    
+    kbl() %>%
+    
+    kable_styling(bootstrap_options = c("condensed", 
+                                        "responsive",
+                                        "striped"),
+                  
+                  font_size = 10,
+                  
+                  html_font = "Arial",
+                 
+                  full_width = F,
+                
+                  position = "center") 
+
+  
+  
+  
+  
+  if (params$rendered_by_shiny)
+    shiny::setProgress(0.99)
+
+
+```
+
+**Table 3.** Number of annotated metabolites reported at each MSI level.
+
+```{r, empty-msg2, eval=eval_blank}
+
+knitr::asis_output("## File containing MSI information was not provided...")
+
+```
+
+```{r, echo=F, fig.align= "center", results=T, message=F, warning=F}
+
+# Download plots and tables as .zip files
+
+zip("plots.zip",
+    "plots")
+
+zip("tables.zip",
+    "tables")
+
+```
+
+
+
+
+
+
+

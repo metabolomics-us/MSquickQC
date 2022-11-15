@@ -1,0 +1,14 @@
+name: Stevens_MS_quickQC
+title: Stevens_MS_quickQC
+username:
+account: chasestevens
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7625190
+bundleId: 6513715
+url: https://chasestevens.shinyapps.io/Stevens_MS_quickQC/
+when: 1668458227.32171
+lastSyncTime: 1668458227.32171
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData
